@@ -117,15 +117,22 @@ public:
 
     // ----------------------------------------
     // modify keys
+    bool should_skip_right_command = false;
+
     if (!pressed) {
-      if (auto key_code = manipulated_keys_.find(device_registry_entry_id, from_key_code)) {
-        manipulated_keys_.remove(device_registry_entry_id, from_key_code);
-        to_key_code = *key_code;
+      if (modifier_flag_manager_.pressed(krbn::modifier_flag::right_command)) {
+        if (auto key_code = manipulated_keys_.find(device_registry_entry_id, from_key_code)) {
+          manipulated_keys_.remove(device_registry_entry_id, from_key_code);
+          to_key_code = *key_code;
+        }
       }
     } else {
-      if (auto key_code = simple_modifications_.get(from_key_code)) {
-        manipulated_keys_.add(device_registry_entry_id, from_key_code, *key_code);
-        to_key_code = *key_code;
+      if (modifier_flag_manager_.pressed(krbn::modifier_flag::right_command)) {
+        if (auto key_code = simple_modifications_.get(from_key_code)) {
+          should_skip_right_command = true;
+          manipulated_keys_.add(device_registry_entry_id, from_key_code, *key_code);
+          to_key_code = *key_code;
+        }
       }
     }
 
@@ -193,11 +200,19 @@ public:
     }
 
     // ----------------------------------------
+
     if (post_modifier_flag_event(to_key_code, pressed, timestamp)) {
       return;
     }
 
-    post_key(to_key_code, pressed, timestamp);
+    auto right_command_key_code = krbn::types::get_key_code("right_command");
+    if (should_skip_right_command) {
+      post_modifier_flag_event(*right_command_key_code, false, timestamp);
+      post_key(to_key_code, pressed, timestamp);
+      post_modifier_flag_event(*right_command_key_code, true, timestamp);
+    } else {
+      post_key(to_key_code, pressed, timestamp);
+    }
   }
 
   void handle_pointing_event(device_registry_entry_id device_registry_entry_id,
